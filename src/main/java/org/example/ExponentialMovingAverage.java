@@ -106,19 +106,39 @@ public class ExponentialMovingAverage {
             // Adjust positions with volatility-based sizing
             for (String stock : stocks) {
                 BigDecimal atr = calculateATR(dataManager.getHistoricalData(stock), i, 14);
-                BigDecimal riskPerTrade = portfolioValue.multiply(BigDecimal.valueOf(RISK_PER_TRADE));
-                BigDecimal positionSize = riskPerTrade.divide(atr, MathContext.DECIMAL128);
+                BigDecimal price = closingPrice.get(stock);
+
+                BigDecimal riskAmount = portfolioValue.multiply(BigDecimal.valueOf(RISK_PER_TRADE));
+                BigDecimal stopLossDistance = atr.multiply(BigDecimal.valueOf(2)); // 2x ATR as stop loss
+
+                // Calculate position size with more nuanced risk management
+                long maxSharesBasedOnRisk = riskAmount
+                        .divide(stopLossDistance, MathContext.DECIMAL128)
+                        .divide(price, MathContext.DECIMAL128)
+                        .longValue();
 
                 if (signals.get(stock) == 1) {
-                    long sharesToBuy = positionSize.divideToIntegralValue(closingPrice.get(stock)).longValue();
-                    long maxCapacity = cash.divideToIntegralValue(closingPrice.get(stock)).longValue();
+                    long affordableShares = cash.divideToIntegralValue(price).longValue();
+                    long sharesToBuy = Math.min(
+                            maxSharesBasedOnRisk,  // Risk-adjusted shares
+                            affordableShares        // Cash-constrained shares
+                    );
 
-                    cash = cash.subtract(closingPrice.get(stock).multiply(BigDecimal.valueOf(Math.min(maxCapacity, sharesToBuy))));
-                    portfolio.put(stock, portfolio.getOrDefault(stock, 0L) + Math.min(maxCapacity, sharesToBuy));
+                    if (sharesToBuy > 0) {
+                        cash = cash.subtract(price.multiply(BigDecimal.valueOf(sharesToBuy)));
+                        portfolio.put(stock, portfolio.getOrDefault(stock, 0L) + sharesToBuy);
+                    }
                 } else if (signals.get(stock) == -1) {
-                    long sharesToSell = Math.min(portfolio.getOrDefault(stock, 0L), positionSize.divideToIntegralValue(closingPrice.get(stock)).longValue());
-                    cash = cash.add(closingPrice.get(stock).multiply(BigDecimal.valueOf(sharesToSell)));
-                    portfolio.put(stock, portfolio.getOrDefault(stock, 0L) - sharesToSell);
+                    long currentHoldings = portfolio.getOrDefault(stock, 0L);
+                    long sharesToSell = Math.min(
+                            maxSharesBasedOnRisk,  // Risk-adjusted shares
+                            currentHoldings         // Available shares
+                    );
+
+                    if (sharesToSell > 0) {
+                        cash = cash.add(price.multiply(BigDecimal.valueOf(sharesToSell)));
+                        portfolio.put(stock, currentHoldings - sharesToSell);
+                    }
                 }
             }
 
