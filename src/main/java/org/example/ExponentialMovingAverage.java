@@ -20,7 +20,7 @@ public class ExponentialMovingAverage {
                 .skip(endIndex - window)
                 .limit(window)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(window), MathContext.DECIMAL64);
+                .divide(BigDecimal.valueOf(window), MathContext.DECIMAL128);
 
         for (int i = endIndex - window + 1; i <= endIndex; i++) {
             BigDecimal price = stockData.get(i).getAdjClose();
@@ -164,9 +164,18 @@ public class ExponentialMovingAverage {
         BigDecimal standardDeviation = BigDecimal.valueOf(Math.sqrt(variance.doubleValue()));
         BigDecimal sharpeRatio = averageReturn.divide(standardDeviation, MathContext.DECIMAL128);
 
+        // Linear regression on market returns
+        double[] coefficients = dataManager.performRegression(dailyReturns, longWindow);
+
         System.out.printf("Backtest Results using shortWindow = %d and longWindow = %d%n", shortWindow, longWindow);
         System.out.printf("Initial Capital: $%.6f%n", INITIAL_CAPITAL);
         System.out.printf("Final Capital: $%.6f%n", portfolioValue);
+        System.out.printf("Linear Regression coefficients: %.6f, %.6f%n", coefficients[0], coefficients[1]);
+        System.out.printf("Accuracy of trading signal: %.6f%n", dailyReturns.stream()
+                .map(r -> r.compareTo(BigDecimal.ZERO) > 0 ? BigDecimal.ONE : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(dailyReturns.size()), MathContext.DECIMAL128)
+                .doubleValue());
         System.out.printf("Maximum Drawdown : %.6f%n", calculateMaxDrawdown(portfolioValues.stream().map(BigDecimal::doubleValue).toList()));
         System.out.printf("Annualized Sharpe Ratio: %.6f%n%n", sharpeRatio.doubleValue()*Math.sqrt(252));
     }

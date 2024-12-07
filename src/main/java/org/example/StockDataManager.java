@@ -6,6 +6,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -91,5 +92,102 @@ public class StockDataManager {
 
     public List<String> getStocks() {
         return new ArrayList<>(historicalData.keySet());
+    }
+
+    private List<BigDecimal> calculateValueWeightedMarketReturns() {
+        List<BigDecimal> marketReturns = new ArrayList<>();
+        marketReturns.add(BigDecimal.ZERO);
+        List<String> stocks = getStocks();
+        int dataLength = getHistoricalData(stocks.get(0)).size();
+
+        for (int i = 1; i < dataLength; i++) {
+            BigDecimal totalMarketCap = BigDecimal.ZERO;
+            BigDecimal weightedReturns = BigDecimal.ZERO;
+
+            for (String stock : stocks) {
+                List<StockData> stockData = getHistoricalData(stock);
+                BigDecimal previousClose = stockData.get(i-1).getAdjClose();
+                BigDecimal currentClose = stockData.get(i).getAdjClose();
+
+                // Assume total shares as a proxy for market cap
+                BigDecimal marketCap = currentClose.multiply(BigDecimal.valueOf(stockData.get(i).getVolume()));
+                BigDecimal stockReturn = currentClose.subtract(previousClose).divide(previousClose, MathContext.DECIMAL128);
+
+                totalMarketCap = totalMarketCap.add(marketCap);
+                weightedReturns = weightedReturns.add(stockReturn.multiply(marketCap));
+            }
+
+            BigDecimal averageMarketReturn = weightedReturns.divide(totalMarketCap,MathContext.DECIMAL128);
+
+            marketReturns.add(averageMarketReturn);
+        }
+
+        return marketReturns;
+    }
+
+    public List<BigDecimal> calculateEqualWeightedMarketReturns() {
+        List<BigDecimal> marketReturns = new ArrayList<>();
+        marketReturns.add(BigDecimal.ZERO);
+        List<String> stocks = getStocks();
+        int dataLength = getHistoricalData(stocks.get(0)).size();
+
+        for (int i = 1; i < dataLength; i++) {
+            BigDecimal totalReturn = BigDecimal.ZERO;
+
+            for (String stock : stocks) {
+                List<StockData> stockData = getHistoricalData(stock);
+                BigDecimal previousClose = stockData.get(i-1).getAdjClose();
+                BigDecimal currentClose = stockData.get(i).getAdjClose();
+
+                BigDecimal stockReturn = currentClose.subtract(previousClose)
+                        .divide(previousClose, MathContext.DECIMAL128);
+
+                totalReturn = totalReturn.add(stockReturn);
+            }
+
+            BigDecimal averageMarketReturn = totalReturn.divide(
+                    BigDecimal.valueOf(stocks.size()),
+                    MathContext.DECIMAL128
+            );
+
+            marketReturns.add(averageMarketReturn);
+        }
+
+        return marketReturns;
+    }
+
+    public double[] performRegression(List<BigDecimal> strategyReturns, int window) {
+        List<BigDecimal> marketReturns = calculateEqualWeightedMarketReturns();
+        int n = marketReturns.size()-window;
+
+        // Calculate means
+        double marketMean = marketReturns.stream()
+                .skip(window)
+                .mapToDouble(BigDecimal::doubleValue)
+                .average()
+                .orElse(0.0);
+
+        double strategyMean = strategyReturns.stream()
+                .mapToDouble(BigDecimal::doubleValue)
+                .average()
+                .orElse(0.0);
+
+        // Calculate covariance and variance
+        double covariance = 0;
+        double marketVariance = 0;
+
+        for (int i = 0; i < n; i++) {
+            covariance += (marketReturns.get(i).doubleValue() - marketMean)
+                    * (strategyReturns.get(i).doubleValue() - strategyMean);
+            marketVariance += Math.pow(marketReturns.get(i).doubleValue() - marketMean, 2);
+        }
+
+        covariance /= (n - 1);
+        marketVariance /= (n - 1);
+
+        double beta = covariance / marketVariance;
+        double alpha = strategyMean - (beta * marketMean);
+
+        return new double[]{alpha, beta};
     }
 }

@@ -33,4 +33,4 @@ Building on the above strategy, certain improvements are introduced:
 4. To calculate the position size of a trade, we use **ATR** (Average True Range) calculated over the last 14 days. This is to limit trading in a stock that is highly volatile.
 5. The position size for a stock is calculated as `RISK_PER_TRADE * portfolioValue / StopLossDistance`. Stop loss distance is the maximum loss per share that we can bear. It is defined to be twice the ATR. 
 
-We observe that the Sharpe Ratio improves considerably from the first strategy to the second strategy.
+We observe that the Sharpe Ratio improves from the first strategy to the second strategy.
