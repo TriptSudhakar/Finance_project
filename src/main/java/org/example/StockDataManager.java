@@ -94,37 +94,6 @@ public class StockDataManager {
         return new ArrayList<>(historicalData.keySet());
     }
 
-    private List<BigDecimal> calculateValueWeightedMarketReturns() {
-        List<BigDecimal> marketReturns = new ArrayList<>();
-        marketReturns.add(BigDecimal.ZERO);
-        List<String> stocks = getStocks();
-        int dataLength = getHistoricalData(stocks.get(0)).size();
-
-        for (int i = 1; i < dataLength; i++) {
-            BigDecimal totalMarketCap = BigDecimal.ZERO;
-            BigDecimal weightedReturns = BigDecimal.ZERO;
-
-            for (String stock : stocks) {
-                List<StockData> stockData = getHistoricalData(stock);
-                BigDecimal previousClose = stockData.get(i-1).getAdjClose();
-                BigDecimal currentClose = stockData.get(i).getAdjClose();
-
-                // Assume total shares as a proxy for market cap
-                BigDecimal marketCap = currentClose.multiply(BigDecimal.valueOf(stockData.get(i).getVolume()));
-                BigDecimal stockReturn = currentClose.subtract(previousClose).divide(previousClose, MathContext.DECIMAL128);
-
-                totalMarketCap = totalMarketCap.add(marketCap);
-                weightedReturns = weightedReturns.add(stockReturn.multiply(marketCap));
-            }
-
-            BigDecimal averageMarketReturn = weightedReturns.divide(totalMarketCap,MathContext.DECIMAL128);
-
-            marketReturns.add(averageMarketReturn);
-        }
-
-        return marketReturns;
-    }
-
     public List<BigDecimal> calculateEqualWeightedMarketReturns() {
         List<BigDecimal> marketReturns = new ArrayList<>();
         marketReturns.add(BigDecimal.ZERO);
