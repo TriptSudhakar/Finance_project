@@ -9,19 +9,16 @@ Now there are two trading strategies, namely `SimpleMovingAverage` and `Exponent
 To execute these, simple run the main functions in the respective classes
 
 ## Methodology
-I have used the daily data of last 5 years for the top 20 stocks in yfinance library in python. 
+I have used the daily data of last 5 years for the top 20 stocks by market cap in the yfinance library in python. <br>
+Market returns are calculated based on the equal weighted average of the stock prices.<br>
+Performance metrics used are Sharpe ratio and Maximum Drawdown.
 
 ### Simple Moving Average
-In this strategy, we first divide the initial capital **equally** among all the stocks.
 
-Then for each stock, we maintain two averages: short average and long average.
-These are calculated at every point using the data points in a previous window; window size for long average is larger than that of short average.
-
-We consider a **long-only strategy**, where we can only sell stocks as much as we own.
-
-Whenever the short average exceeds the long average, it is a signal to buy and when the short average falls below the long average, it is a signal to sell.
-
-In the code, three combinations of window sizes are tested. Performance metrics used are Sharpe ratio and Maximum Drawdown.
+1. Divide the initial capital **equally** among all the stocks. 
+2. Then for each stock, we maintain two averages: short average (over 10 days) and long average (over 50 days).
+3. We consider a **long-only strategy**, where we can only sell stocks as much as we own.
+4. Whenever the short average exceeds the long average, it is a signal to buy and when the short average falls below the long average, it is a signal to sell.
 
 ### Exponential Moving Average
 Building on the above strategy, certain improvements are introduced:
@@ -29,8 +26,9 @@ Building on the above strategy, certain improvements are introduced:
 2. Buy/sell signals for stock are now generated using the previous condition for long and short averages along with **RSI** over the last 14 days
    - **Buy** a stock only if **short EMA > long EMA** and **RSI > 30** (RSI < 30 indicates that the stock is overbought)
    - **Sell** a stock only if **short EMA < long EMA** and **RSI < 70** (RSI > 70 indicates that the stock is oversold)
-3. Now we define `RISK_PER_TRADE` as **0.5%**, which is the maximum risk that we can take per trade.
+3. Now we define `RISK_PER_TRADE` as **0.5%**, which is the maximum value of the portfolio that we can invest per trade.
 4. To calculate the position size of a trade, we use **ATR** (Average True Range) calculated over the last 14 days. This is to limit trading in a stock that is highly volatile.
-5. The position size for a stock is calculated as `RISK_PER_TRADE * portfolioValue / StopLossDistance`. Stop loss distance is the maximum loss per share that we can bear. It is defined to be twice the ATR. 
+5. The position size for a stock is calculated as `RISK_PER_TRADE * portfolioValue / StopLossDistance`. Stop loss distance is the maximum loss per share that we can bear. It is defined to be thrice the ATR. 
+6. Short selling of stocks can take place since the position size is now controlled.
 
 We observe that the Sharpe Ratio improves from the first strategy to the second strategy.

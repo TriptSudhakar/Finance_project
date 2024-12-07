@@ -9,7 +9,6 @@ import static org.example.SimpleMovingAverage.calculateMaxDrawdown;
 public class ExponentialMovingAverage {
 
     private static final double INITIAL_CAPITAL = 1_000_000.0;
-    private static final int[] MOVING_AVERAGE_WINDOWS = {10, 20, 50};
     private static final double RISK_PER_TRADE = 0.005;
 
     private static BigDecimal calculateEMA(List<StockData> stockData, int endIndex, int window) {
@@ -109,9 +108,8 @@ public class ExponentialMovingAverage {
                 BigDecimal price = closingPrice.get(stock);
 
                 BigDecimal riskAmount = portfolioValue.multiply(BigDecimal.valueOf(RISK_PER_TRADE));
-                BigDecimal stopLossDistance = atr.multiply(BigDecimal.valueOf(2)); // 2x ATR as stop loss
+                BigDecimal stopLossDistance = atr.multiply(BigDecimal.valueOf(3));
 
-                // Calculate position size with more nuanced risk management
                 long maxSharesBasedOnRisk = riskAmount
                         .divide(stopLossDistance, MathContext.DECIMAL128)
                         .divide(price, MathContext.DECIMAL128)
@@ -119,10 +117,7 @@ public class ExponentialMovingAverage {
 
                 if (signals.get(stock) == 1) {
                     long affordableShares = cash.divideToIntegralValue(price).longValue();
-                    long sharesToBuy = Math.min(
-                            maxSharesBasedOnRisk,  // Risk-adjusted shares
-                            affordableShares        // Cash-constrained shares
-                    );
+                    long sharesToBuy = Math.min(maxSharesBasedOnRisk, affordableShares);
 
                     if (sharesToBuy > 0) {
                         cash = cash.subtract(price.multiply(BigDecimal.valueOf(sharesToBuy)));
@@ -130,15 +125,8 @@ public class ExponentialMovingAverage {
                     }
                 } else if (signals.get(stock) == -1) {
                     long currentHoldings = portfolio.getOrDefault(stock, 0L);
-                    long sharesToSell = Math.min(
-                            maxSharesBasedOnRisk,  // Risk-adjusted shares
-                            currentHoldings         // Available shares
-                    );
-
-                    if (sharesToSell > 0) {
-                        cash = cash.add(price.multiply(BigDecimal.valueOf(sharesToSell)));
-                        portfolio.put(stock, currentHoldings - sharesToSell);
-                    }
+                    cash = cash.add(price.multiply(BigDecimal.valueOf(maxSharesBasedOnRisk)));
+                    portfolio.put(stock, currentHoldings - maxSharesBasedOnRisk);
                 }
             }
 
@@ -181,12 +169,6 @@ public class ExponentialMovingAverage {
     }
 
     public static void main(String[] args) {
-        for (int shortWindow : MOVING_AVERAGE_WINDOWS) {
-            for (int longWindow : MOVING_AVERAGE_WINDOWS) {
-                if (shortWindow < longWindow) {
-                    simulate(shortWindow, longWindow);
-                }
-            }
-        }
+        simulate(10, 50);
     }
 }

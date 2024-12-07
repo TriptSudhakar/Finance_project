@@ -7,7 +7,6 @@ import java.util.stream.Stream;
 
 public class SimpleMovingAverage {
     private static final double INITIAL_CAPITAL = 1_000_000.0;
-    private static final int[] MOVING_AVERAGE_WINDOWS = {10, 20, 50};
 
     private static BigDecimal calculateMovingAverage(List<StockData> stockData, int endIndex, int window) {
         return stockData.stream()
@@ -117,12 +116,6 @@ public class SimpleMovingAverage {
     }
 
     public static void main(String[] args) {
-        for(int shortWindow: MOVING_AVERAGE_WINDOWS) {
-            for(int longWindow: MOVING_AVERAGE_WINDOWS) {
-                if (shortWindow < longWindow) {
-                    simulate(shortWindow, longWindow);
-                }
-            }
-        }
+        simulate(10, 50);
     }
 }
